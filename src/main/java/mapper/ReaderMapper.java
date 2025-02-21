@@ -3,23 +3,30 @@ package mapper;
 import dto.ReaderDTO;
 import entity.Reader;
 
-public class ReaderMapper {
-    public static ReaderDTO toReaderDTO(Reader reader) {
-        if (reader == null) return null;
-        ReaderDTO readerDTO = new ReaderDTO();
-        readerDTO.setReader_id(reader.getReader_id());
-        readerDTO.setName(reader.getName());
-        readerDTO.setEmail(reader.getEmail());
-        readerDTO.setRegistration_date(reader.getRegistration_date());
-        return readerDTO;
+public class ReaderMapper implements Mapper<Reader, ReaderDTO> {
+    @Override
+    public ReaderDTO toDto(Reader reader) {
+        if (reader == null) {
+            return null;
+        }
+        ReaderDTO dto = new ReaderDTO();
+        dto.setReaderId(reader.getReaderId());
+        dto.setName(reader.getName());
+        dto.setEmail(reader.getEmail());
+        dto.setRegistrationDate(reader.getRegistrationDate());
+        return dto;
     }
-    public static Reader toReader(ReaderDTO readerDTO) {
-        if (readerDTO == null) return null;
+
+    @Override
+    public Reader toEntity(ReaderDTO dto) {
+        if (dto == null) {
+            return null;
+        }
         Reader reader = new Reader();
-        reader.setReader_id(readerDTO.getReader_id());
-        reader.setName(readerDTO.getName());
-        reader.setEmail(readerDTO.getEmail());
-        reader.setRegistration_date(readerDTO.getRegistration_date());
+        reader.setReaderId(dto.getReaderId());
+        reader.setName(dto.getName());
+        reader.setEmail(dto.getEmail());
+        reader.setRegistrationDate(dto.getRegistrationDate());
         return reader;
     }
 }

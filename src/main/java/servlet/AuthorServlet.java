@@ -12,7 +12,7 @@ import util.JsonUtil;
 import java.io.IOException;
 import java.util.List;
 
-@WebServlet("/authors/*")
+@WebServlet("/api/v1/authors/*")
 public class AuthorServlet extends HttpServlet {
     private final AuthorService authorService = new AuthorService();
 
@@ -23,13 +23,12 @@ public class AuthorServlet extends HttpServlet {
             try {
                 int id = Integer.parseInt(idParam);
                 AuthorDTO authorDTO = authorService.getAuthorById(id);
-                if (authorDTO != null) {
-                    JsonUtil.sendJsonResponse(resp, authorDTO, HttpServletResponse.SC_OK);
-                } else {
-                    JsonUtil.sendErrorResponse(resp, "Author not found", HttpServletResponse.SC_NOT_FOUND);
-                }
+                JsonUtil.checkExists(authorDTO, "Author not found", HttpServletResponse.SC_NOT_FOUND);
+                JsonUtil.sendJsonResponse(resp, authorDTO, HttpServletResponse.SC_OK);
             } catch (NumberFormatException e) {
                 JsonUtil.sendErrorResponse(resp, "Invalid ID format", HttpServletResponse.SC_BAD_REQUEST);
+            } catch (JsonUtil.NotFoundException e) {
+                JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
             }
         } else {
             List<AuthorDTO> authors = authorService.getAllAuthors();
@@ -37,34 +36,35 @@ public class AuthorServlet extends HttpServlet {
         }
     }
 
-
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         AuthorDTO authorDto = JsonUtil.parseJsonRequest(req, AuthorDTO.class);
-        if (authorDto == null) {
-            JsonUtil.sendErrorResponse(resp, "Invalid JSON format", HttpServletResponse.SC_BAD_REQUEST);
-            return;
+        try {
+            JsonUtil.checkDto(authorDto);
+            AuthorDTO createdAuthor = authorService.createAuthor(authorDto);
+            JsonUtil.sendJsonResponse(resp, createdAuthor, HttpServletResponse.SC_CREATED);
+        } catch (JsonUtil.InvalidDtoException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_BAD_REQUEST);
         }
-        AuthorDTO createAuthor = authorService.createAuthor(authorDto);
-        JsonUtil.sendJsonResponse(resp, createAuthor, HttpServletResponse.SC_CREATED);
     }
 
     @Override
     protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         AuthorDTO authorDto = JsonUtil.parseJsonRequest(req, AuthorDTO.class);
-        if (authorDto == null || authorDto.getAuthor_id() == null) {
-            System.out.println("Error: author_id is null");
-            JsonUtil.sendErrorResponse(resp, "Invalid JSON format or missing ID", HttpServletResponse.SC_BAD_REQUEST);
-            return;
-        }
-        boolean updated = authorService.updateAuthor(authorDto.getAuthor_id(), authorDto);
-        if (updated) {
-            JsonUtil.sendJsonResponse(resp, authorDto, HttpServletResponse.SC_OK);
-        } else {
-            JsonUtil.sendErrorResponse(resp, "Author not found", HttpServletResponse.SC_NOT_FOUND);
+        try {
+            JsonUtil.checkDto(authorDto);
+            boolean updated = authorService.updateAuthor(authorDto.getAuthorId(), authorDto);
+            if (updated) {
+                JsonUtil.sendJsonResponse(resp, authorDto, HttpServletResponse.SC_OK);
+            } else {
+                throw new JsonUtil.NotFoundException("Author not found");
+            }
+        } catch (JsonUtil.InvalidDtoException | JsonUtil.NotFoundException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
+    @Override
     protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String path = req.getRequestURI();
         String[] pathParts = path.split("/");
@@ -72,18 +72,15 @@ public class AuthorServlet extends HttpServlet {
             try {
                 int id = Integer.parseInt(pathParts[pathParts.length - 1]);
                 boolean deleted = authorService.deleteAuthor(id);
-                if (deleted) {
-                    JsonUtil.sendJsonResponse(resp, "Author deleted", HttpServletResponse.SC_OK);
-                } else {
-                    JsonUtil.sendErrorResponse(resp, "Author not found", HttpServletResponse.SC_NOT_FOUND);
-                }
+                JsonUtil.checkDeletion(deleted, "Author not found", HttpServletResponse.SC_NOT_FOUND);
+                JsonUtil.sendJsonResponse(resp, "Author deleted", HttpServletResponse.SC_OK);
             } catch (NumberFormatException e) {
                 JsonUtil.sendErrorResponse(resp, "Invalid ID format", HttpServletResponse.SC_BAD_REQUEST);
+            } catch (JsonUtil.NotFoundException e) {
+                JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
             }
         } else {
             JsonUtil.sendErrorResponse(resp, "Missing ID parameter", HttpServletResponse.SC_BAD_REQUEST);
         }
     }
-
-
 }

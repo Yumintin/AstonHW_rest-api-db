@@ -2,12 +2,10 @@ package entity;
 
 import lombok.Data;
 
-import java.util.Date;
-
 @Data
 public class Reader {
-    private Integer reader_id;
+    private Integer readerId;
     private String name;
     private String email;
-    private String registration_date;
+    private String registrationDate;
 }

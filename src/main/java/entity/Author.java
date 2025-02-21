@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class Author {
-    private Integer author_id;
+    private Integer authorId;
     private String name;
-    private Integer birth_year;
+    private Integer birthYear;
 }

@@ -10,26 +10,26 @@ import java.util.stream.Collectors;
 
 public class AuthorService {
     private final AuthorRepository repository = new AuthorRepository();
-
+    private final AuthorMapper authorMapper = new AuthorMapper();
     public AuthorDTO createAuthor(AuthorDTO dto) {
-        Author author = AuthorMapper.toAuthor(dto);
+        Author author = authorMapper.toEntity(dto);
         Author created = repository.create(author);
-        return AuthorMapper.toAuthorDTO(created);
+        return authorMapper.toDto(created);
     }
 
     public AuthorDTO getAuthorById(int id) {
         Author author = repository.findbyId(id);
-        return AuthorMapper.toAuthorDTO(author);
+        return authorMapper.toDto(author);
     }
 
     public List<AuthorDTO> getAllAuthors() {
         List<Author> authors = repository.findAll();
-        return authors.stream().map(AuthorMapper::toAuthorDTO).collect(Collectors.toList());
+        return authors.stream().map(authorMapper::toDto).collect(Collectors.toList());
     }
 
     public boolean updateAuthor(int id, AuthorDTO dto) {
-        Author author = AuthorMapper.toAuthor(dto);
-        author.setAuthor_id(id);
+        Author author = authorMapper.toEntity(dto);
+        author.setAuthorId(id);
         return repository.update(author);
     }
 

@@ -2,6 +2,7 @@ package service;
 
 import dto.ReaderDTO;
 import entity.Reader;
+import mapper.Mapper;
 import mapper.ReaderMapper;
 import repository.ReaderRepository;
 
@@ -10,26 +11,27 @@ import java.util.stream.Collectors;
 
 public class ReaderService {
     private final ReaderRepository repository = new ReaderRepository();
+    private final ReaderMapper readerMapper = new ReaderMapper();
 
     public ReaderDTO createReader(ReaderDTO dto) {
-        Reader reader = ReaderMapper.toReader(dto);
+        Reader reader = readerMapper.toEntity(dto);
         Reader created = repository.create(reader);
-        return ReaderMapper.toReaderDTO(created);
+        return readerMapper.toDto(created);
     }
 
     public ReaderDTO getReaderById(int id) {
         Reader reader = repository.getById(id);
-        return ReaderMapper.toReaderDTO(reader);
+        return readerMapper.toDto(reader);
     }
 
     public List<ReaderDTO> getAllReaders() {
         List<Reader> readers = repository.getAll();
-        return readers.stream().map(ReaderMapper::toReaderDTO).collect(Collectors.toList());
+        return readers.stream().map(readerMapper::toDto).collect(Collectors.toList());
     }
 
     public boolean updateReader(int id, ReaderDTO dto) {
-        Reader reader = ReaderMapper.toReader(dto);
-        reader.setReader_id(id);
+        Reader reader = readerMapper.toEntity(dto);
+        reader.setReaderId(id);
         return repository.update(reader);
     }
 

@@ -10,76 +10,76 @@ import service.ReaderService;
 import util.JsonUtil;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
 
-@WebServlet("/readers/*")
+@WebServlet("/api/v1/readers/*")
 public class ReaderServlet extends HttpServlet {
     private final ReaderService readerService = new ReaderService();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException{
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String pathInfo = req.getPathInfo();
-        if(pathInfo==null || pathInfo.equals("/")){
-            List<ReaderDTO> readers=readerService.getAllReaders();
-            JsonUtil.sendJsonResponse(resp,readers,HttpServletResponse.SC_OK);
+        if (pathInfo == null || pathInfo.equals("/")) {
+            List<ReaderDTO> readers = readerService.getAllReaders();
+            JsonUtil.sendJsonResponse(resp, readers, HttpServletResponse.SC_OK);
         } else {
             try {
                 int id = Integer.parseInt(pathInfo.substring(1));
                 ReaderDTO reader = readerService.getReaderById(id);
-                if(reader!=null){
-                    JsonUtil.sendJsonResponse(resp,reader,HttpServletResponse.SC_OK);
-                } else {
-                    JsonUtil.sendJsonResponse(resp,"Reader not found",HttpServletResponse.SC_NOT_FOUND);
-                }
+                JsonUtil.checkExists(reader, "Reader not found", HttpServletResponse.SC_NOT_FOUND);
+                JsonUtil.sendJsonResponse(resp, reader, HttpServletResponse.SC_OK);
             } catch (NumberFormatException e) {
-                JsonUtil.sendJsonResponse(resp,"Invalid reader ID format",HttpServletResponse.SC_BAD_REQUEST);
+                JsonUtil.sendErrorResponse(resp, "Invalid reader ID format", HttpServletResponse.SC_BAD_REQUEST);
+            } catch (JsonUtil.NotFoundException e) {
+                JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
             }
         }
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException{
-        ReaderDTO readerDTO=JsonUtil.parseJsonRequest(req,ReaderDTO.class);
-        if(readerDTO==null){
-            JsonUtil.sendJsonResponse(resp,"Invalid JSON",HttpServletResponse.SC_BAD_REQUEST);
-            return;
-        }
-        ReaderDTO createdReader=readerService.createReader(readerDTO);
-        JsonUtil.sendJsonResponse(resp,createdReader,HttpServletResponse.SC_CREATED);
-    }
-
-    @Override
-    protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException{
-        ReaderDTO readerDTO=JsonUtil.parseJsonRequest(req,ReaderDTO.class);
-        if(readerDTO==null || readerDTO.getReader_id()==null){
-            JsonUtil.sendErrorResponse(resp,"Invalid JSON format or missing reader ID",HttpServletResponse.SC_BAD_REQUEST);
-            return;
-        }
-        boolean updated = readerService.updateReader(readerDTO.getReader_id(),readerDTO);
-        if(updated){
-            JsonUtil.sendJsonResponse(resp,readerDTO,HttpServletResponse.SC_OK);
-        } else {
-            JsonUtil.sendErrorResponse(resp,"Reader not found",HttpServletResponse.SC_NOT_FOUND);
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        ReaderDTO readerDTO = JsonUtil.parseJsonRequest(req, ReaderDTO.class);
+        try {
+            JsonUtil.checkDto(readerDTO);
+            ReaderDTO createdReader = readerService.createReader(readerDTO);
+            JsonUtil.sendJsonResponse(resp, createdReader, HttpServletResponse.SC_CREATED);
+        } catch (JsonUtil.InvalidDtoException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_BAD_REQUEST);
         }
     }
 
     @Override
-    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException{
+    protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        ReaderDTO readerDTO = JsonUtil.parseJsonRequest(req, ReaderDTO.class);
+        try {
+            JsonUtil.checkDto(readerDTO);
+            boolean updated = readerService.updateReader(readerDTO.getReaderId(), readerDTO);
+            if (updated) {
+                JsonUtil.sendJsonResponse(resp, readerDTO, HttpServletResponse.SC_OK);
+            } else {
+                throw new JsonUtil.NotFoundException("Reader not found");
+            }
+        } catch (JsonUtil.InvalidDtoException | JsonUtil.NotFoundException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
+        }
+    }
+
+    @Override
+    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String pathInfo = req.getPathInfo();
-        if(pathInfo==null || pathInfo.equals("/")){
-            JsonUtil.sendErrorResponse(resp,"Missing reader ID",HttpServletResponse.SC_BAD_REQUEST);
+        if (pathInfo == null || pathInfo.equals("/")) {
+            JsonUtil.sendErrorResponse(resp, "Missing reader ID", HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
         try {
             int id = Integer.parseInt(pathInfo.substring(1));
-           boolean deleted= readerService.deleteReader(id);
-           if(deleted){
-            JsonUtil.sendJsonResponse(resp,"Reader deleted",HttpServletResponse.SC_OK);
-        } else {
-            JsonUtil.sendErrorResponse(resp,"Reader not found",HttpServletResponse.SC_NOT_FOUND);
+            boolean deleted = readerService.deleteReader(id);
+            JsonUtil.checkDeletion(deleted, "Reader not found", HttpServletResponse.SC_NOT_FOUND);
+            JsonUtil.sendJsonResponse(resp, "Reader deleted", HttpServletResponse.SC_OK);
+        } catch (NumberFormatException e) {
+            JsonUtil.sendErrorResponse(resp, "Invalid reader ID format", HttpServletResponse.SC_BAD_REQUEST);
+        } catch (JsonUtil.NotFoundException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
         }
-    }catch (NumberFormatException e) {
-        JsonUtil.sendErrorResponse(resp,"Invalid reader ID format",HttpServletResponse.SC_BAD_REQUEST);}
     }
 }

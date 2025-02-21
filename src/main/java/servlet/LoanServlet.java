@@ -12,7 +12,7 @@ import util.JsonUtil;
 import java.io.IOException;
 import java.util.List;
 
-@WebServlet("/loans/*")
+@WebServlet("/api/v1/loans/*")
 public class LoanServlet extends HttpServlet {
     private final LoanService loanService = new LoanService();
 
@@ -26,13 +26,12 @@ public class LoanServlet extends HttpServlet {
             try {
                 int id = Integer.parseInt(pathInfo.substring(1));
                 LoanDTO loan = loanService.getLoanById(id);
-                if (loan != null) {
-                    JsonUtil.sendJsonResponse(resp, loan, HttpServletResponse.SC_OK);
-                } else {
-                    JsonUtil.sendJsonResponse(resp, "Loan not found", HttpServletResponse.SC_NOT_FOUND);
-                }
+                JsonUtil.checkExists(loan, "Loan not found", HttpServletResponse.SC_NOT_FOUND);
+                JsonUtil.sendJsonResponse(resp, loan, HttpServletResponse.SC_OK);
             } catch (NumberFormatException e) {
-                JsonUtil.sendJsonResponse(resp, "Invalid loan ID format", HttpServletResponse.SC_BAD_REQUEST);
+                JsonUtil.sendErrorResponse(resp, "Invalid loan ID format", HttpServletResponse.SC_BAD_REQUEST);
+            } catch (JsonUtil.NotFoundException e) {
+                JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
             }
         }
     }
@@ -40,48 +39,47 @@ public class LoanServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         LoanDTO loanDTO = JsonUtil.parseJsonRequest(req, LoanDTO.class);
-        if (loanDTO == null) {
-            JsonUtil.sendJsonResponse(resp, "Invalid JSON", HttpServletResponse.SC_BAD_REQUEST);
-            return;
+        try {
+            JsonUtil.checkDto(loanDTO);
+            LoanDTO createdLoan = loanService.createLoan(loanDTO);
+            JsonUtil.sendJsonResponse(resp, createdLoan, HttpServletResponse.SC_CREATED);
+        } catch (JsonUtil.InvalidDtoException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_BAD_REQUEST);
         }
-
-        LoanDTO createdLoan = loanService.createLoan(loanDTO);
-        JsonUtil.sendJsonResponse(resp, createdLoan, HttpServletResponse.SC_CREATED);
     }
 
     @Override
     protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         LoanDTO loanDTO = JsonUtil.parseJsonRequest(req, LoanDTO.class);
-        if (loanDTO == null || loanDTO.getLoan_id() == null) {
-            JsonUtil.sendJsonResponse(resp, "Invalid JSON format or missing loan ID", HttpServletResponse.SC_BAD_REQUEST);
-            return;
-        }
-
-        boolean updated = loanService.updateLoan(loanDTO.getLoan_id(), loanDTO);
-        if (updated) {
-            JsonUtil.sendJsonResponse(resp, loanDTO, HttpServletResponse.SC_OK);
-        } else {
-            JsonUtil.sendJsonResponse(resp, "Loan not found", HttpServletResponse.SC_NOT_FOUND);
+        try {
+            JsonUtil.checkDto(loanDTO);
+            boolean updated = loanService.updateLoan(loanDTO.getLoanId(), loanDTO);
+            if (updated) {
+                JsonUtil.sendJsonResponse(resp, loanDTO, HttpServletResponse.SC_OK);
+            } else {
+                throw new JsonUtil.NotFoundException("Loan not found");
+            }
+        } catch (JsonUtil.InvalidDtoException | JsonUtil.NotFoundException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
     @Override
     protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String pathInfo = req.getPathInfo();
-        if (pathInfo.equals("/") || pathInfo == null) {
-            JsonUtil.sendJsonResponse(resp, "Missing loan ID", HttpServletResponse.SC_BAD_REQUEST);
+        if (pathInfo == null || pathInfo.equals("/")) {
+            JsonUtil.sendErrorResponse(resp, "Missing loan ID", HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
         try {
             int id = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = loanService.deleteLoan(id);
-            if (deleted) {
-                JsonUtil.sendJsonResponse(resp, "Loan deleted", HttpServletResponse.SC_OK);
-            } else {
-                JsonUtil.sendJsonResponse(resp, "Loan not found", HttpServletResponse.SC_NOT_FOUND);
-            }
+            JsonUtil.checkDeletion(deleted, "Loan not found", HttpServletResponse.SC_NOT_FOUND);
+            JsonUtil.sendJsonResponse(resp, "Loan deleted", HttpServletResponse.SC_OK);
         } catch (NumberFormatException e) {
-            JsonUtil.sendJsonResponse(resp, "Invalid loan ID format", HttpServletResponse.SC_BAD_REQUEST);
+            JsonUtil.sendErrorResponse(resp, "Invalid loan ID format", HttpServletResponse.SC_BAD_REQUEST);
+        } catch (JsonUtil.NotFoundException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
         }
     }
 }

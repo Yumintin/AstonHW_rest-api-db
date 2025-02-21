@@ -3,26 +3,32 @@ package mapper;
 import dto.BookDTO;
 import entity.Book;
 
-public class BookMapper {
-    public static BookDTO toBookDTO(Book book) {
-        if (book == null) return null;
-        BookDTO bookDTO = new BookDTO();
-        bookDTO.setBook_id(book.getBook_id());
-        bookDTO.setTitle(book.getTitle());
-        bookDTO.setAuthor_id(book.getAuthor_id());
-        bookDTO.setYear_published(book.getYear_published());
-        bookDTO.setGenre(book.getGenre());
-        return bookDTO;
+public class BookMapper implements Mapper<Book, BookDTO> {
+    @Override
+    public BookDTO toDto(Book book) {
+        if (book == null) {
+            return null;
+        }
+        BookDTO dto = new BookDTO();
+        dto.setBookId(book.getBookId());
+        dto.setTitle(book.getTitle());
+        dto.setAuthorId(book.getAuthorId());
+        dto.setYearPublished(book.getYearPublished());
+        dto.setGenre(book.getGenre());
+        return dto;
     }
 
-    public static Book toBook(BookDTO bookDTO) {
-        if (bookDTO == null) return null;
+    @Override
+    public Book toEntity(BookDTO dto) {
+        if (dto == null) {
+            return null;
+        }
         Book book = new Book();
-        book.setBook_id(bookDTO.getBook_id());
-        book.setTitle(bookDTO.getTitle());
-        book.setAuthor_id(bookDTO.getAuthor_id());
-        book.setYear_published(bookDTO.getYear_published());
-        book.setGenre(bookDTO.getGenre());
+        book.setBookId(dto.getBookId());
+        book.setTitle(dto.getTitle());
+        book.setAuthorId(dto.getAuthorId());
+        book.setYearPublished(dto.getYearPublished());
+        book.setGenre(dto.getGenre());
         return book;
     }
 }

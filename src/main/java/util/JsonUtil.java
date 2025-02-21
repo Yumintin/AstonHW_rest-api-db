@@ -27,20 +27,57 @@ public class JsonUtil {
     public static String toJson(Object obj) throws IOException {
         return objectMapper.writeValueAsString(obj);
     }
-    // Вспомогательный метод для отправки JSON-ответов
+
     public static void sendJsonResponse(HttpServletResponse resp, Object data, int status) throws IOException {
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
         resp.setStatus(status);
-        resp.getWriter().write(JsonUtil.toJson(data));
+        resp.getWriter().write(toJson(data));
     }
 
-    // Вспомогательный метод для отправки ошибок
     public static void sendErrorResponse(HttpServletResponse resp, String message, int status) throws IOException {
-        resp.setContentType("application/json");
-        resp.setCharacterEncoding("UTF-8");
-        resp.setStatus(status);
-        resp.getWriter().write("{\"error\": \"" + message + "\"}");
+        sendJsonResponse(resp, new ErrorResponse(message), status);
+    }
+
+    public static void checkDto(Object dto) throws InvalidDtoException {
+        if (dto == null) {
+            throw new InvalidDtoException("Invalid JSON format or missing required fields");
+        }
+    }
+
+    public static void checkExists(Object obj, String errorMessage, int status) throws NotFoundException {
+        if (obj == null) {
+            throw new NotFoundException(errorMessage);
+        }
+    }
+
+    public static void checkDeletion(boolean deleted, String errorMessage, int status) throws NotFoundException {
+        if (!deleted) {
+            throw new NotFoundException(errorMessage);
+        }
+    }
+
+    public static class ErrorResponse {
+        private final String error;
+
+        public ErrorResponse(String error) {
+            this.error = error;
+        }
+
+        public String getError() {
+            return error;
+        }
+    }
+
+    public static class InvalidDtoException extends Exception {
+        public InvalidDtoException(String message) {
+            super(message);
+        }
+    }
+
+    public static class NotFoundException extends Exception {
+        public NotFoundException(String message) {
+            super(message);
+        }
     }
 }
-

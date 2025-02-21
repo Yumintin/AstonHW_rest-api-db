@@ -1,7 +1,6 @@
 package servlet;
 
 import dto.BookDTO;
-import entity.Book;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -13,7 +12,7 @@ import util.JsonUtil;
 import java.io.IOException;
 import java.util.List;
 
-@WebServlet("/books/*")
+@WebServlet("/api/v1/books/*")
 public class BookServlet extends HttpServlet {
     private final BookService bookService = new BookService();
 
@@ -27,13 +26,12 @@ public class BookServlet extends HttpServlet {
             try {
                 int id = Integer.parseInt(pathInfo.substring(1));
                 BookDTO book = bookService.getBookById(id);
-                if (book != null) {
-                    JsonUtil.sendJsonResponse(resp, book, HttpServletResponse.SC_OK);
-                } else {
-                    JsonUtil.sendErrorResponse(resp, "Book not found", HttpServletResponse.SC_NOT_FOUND);
-                }
+                JsonUtil.checkExists(book, "Book not found", HttpServletResponse.SC_NOT_FOUND);
+                JsonUtil.sendJsonResponse(resp, book, HttpServletResponse.SC_OK);
             } catch (NumberFormatException e) {
                 JsonUtil.sendErrorResponse(resp, "Invalid book ID format", HttpServletResponse.SC_BAD_REQUEST);
+            } catch (JsonUtil.NotFoundException e) {
+                JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
             }
         }
     }
@@ -41,26 +39,28 @@ public class BookServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         BookDTO bookDto = JsonUtil.parseJsonRequest(req, BookDTO.class);
-        if (bookDto == null) {
-            JsonUtil.sendErrorResponse(resp, "Invalid JSON", HttpServletResponse.SC_BAD_REQUEST);
-            return;
+        try {
+            JsonUtil.checkDto(bookDto);
+            BookDTO createdBook = bookService.createBook(bookDto);
+            JsonUtil.sendJsonResponse(resp, createdBook, HttpServletResponse.SC_CREATED);
+        } catch (JsonUtil.InvalidDtoException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_BAD_REQUEST);
         }
-        BookDTO createdBook = bookService.createBook(bookDto);
-        JsonUtil.sendJsonResponse(resp, createdBook, HttpServletResponse.SC_CREATED);
     }
 
     @Override
     protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         BookDTO bookDto = JsonUtil.parseJsonRequest(req, BookDTO.class);
-        if (bookDto == null || bookDto.getBook_id() == null) {
-            JsonUtil.sendErrorResponse(resp, "Invalid JSON format or missing book ID", HttpServletResponse.SC_BAD_REQUEST);
-            return;
-        }
-        boolean updated = bookService.updateBook(bookDto.getBook_id(), bookDto);
-        if (updated) {
-            JsonUtil.sendJsonResponse(resp, bookDto, HttpServletResponse.SC_OK);
-        } else {
-            JsonUtil.sendErrorResponse(resp, "Book not found", HttpServletResponse.SC_NOT_FOUND);
+        try {
+            JsonUtil.checkDto(bookDto);
+            boolean updated = bookService.updateBook(bookDto.getBookId(), bookDto);
+            if (updated) {
+                JsonUtil.sendJsonResponse(resp, bookDto, HttpServletResponse.SC_OK);
+            } else {
+                throw new JsonUtil.NotFoundException("Book not found");
+            }
+        } catch (JsonUtil.InvalidDtoException | JsonUtil.NotFoundException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
         }
     }
 
@@ -69,17 +69,17 @@ public class BookServlet extends HttpServlet {
         String pathInfo = req.getPathInfo();
         if (pathInfo == null || pathInfo.equals("/")) {
             JsonUtil.sendErrorResponse(resp, "Missing book ID", HttpServletResponse.SC_BAD_REQUEST);
+            return;
         }
         try {
             int id = Integer.parseInt(pathInfo.substring(1));
             boolean deleted = bookService.deleteBook(id);
-            if (deleted) {
-                JsonUtil.sendJsonResponse(resp, "Book deleted", HttpServletResponse.SC_OK);
-            } else {
-                JsonUtil.sendErrorResponse(resp, "Book not found", HttpServletResponse.SC_NOT_FOUND);
-            }
+            JsonUtil.checkDeletion(deleted, "Book not found", HttpServletResponse.SC_NOT_FOUND);
+            JsonUtil.sendJsonResponse(resp, "Book deleted", HttpServletResponse.SC_OK);
         } catch (NumberFormatException e) {
             JsonUtil.sendErrorResponse(resp, "Invalid book ID format", HttpServletResponse.SC_BAD_REQUEST);
+        } catch (JsonUtil.NotFoundException e) {
+            JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
         }
     }
 }

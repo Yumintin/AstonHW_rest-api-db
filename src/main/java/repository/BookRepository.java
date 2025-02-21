@@ -10,113 +10,127 @@ import java.util.List;
 
 public class BookRepository {
 
-    //CREATE
+    private static final String SQL_INSERT = "INSERT INTO books (title, author_id, year_published, genre) VALUES (?,?,?,?) RETURNING book_id";
+    private static final String SQL_SELECT_BY_ID = "SELECT book_id,title,author_id,year_published,genre FROM books WHERE book_id = ?";
+    private static final String SQL_UPDATE = "UPDATE books SET title=?, author_id=?, year_published=?, genre=? WHERE book_id=?";
+    private static final String SQL_SELECT_ALL = "SELECT book_id,title,author_id,year_published,genre FROM books";
+    private static final String SQL_DELETE = "DELETE FROM books WHERE book_id = ?";
+
+
+    /**
+     * Создаем новую запись Book в базе данных
+     *
+     * @param book объект Book для создания
+     * @return созданный объект Book с заполненным bookId
+     */
     public Book create(Book book) {
-        String sql = "INSERT INTO books (title, author_id, year_published, genre) " +
-                "VALUES (?,?,?,?) RETURNING book_id";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> fillPreparedStatementForBook(preparedStatement, book, false),
-                preparedStatement -> {
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        if (resultSet.next()) {
-                            book.setBook_id(resultSet.getInt("book_id"));
+        return DBConnection.executePreparedStatement(SQL_INSERT,
+                stmt -> fillPreparedStatementForBook(stmt, book, false),
+                stmt -> {
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            book.setBookId(rs.getInt("book_id"));
                         }
                     }
                     return book;
                 });
     }
 
-    //READ
+    /**
+     * Находит запись Book в базе данных
+     *
+     * @param id идентификатор книги
+     * @return объект Book, если запись найдена, иначе null
+     */
     public Book findByBookId(int id) {
-        String sql = "SELECT book_id,title,author_id,year_published,genre FROM books WHERE book_id = ?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> preparedStatement.setInt(1, id),
-                preparedStatement -> {
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        if (resultSet.next()) {
-                            return mapResultSetToBook(resultSet);
+        return DBConnection.executePreparedStatement(SQL_SELECT_BY_ID,
+                stmt -> stmt.setInt(1, id),
+                stmt -> {
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            return mapResultSetToBook(rs);
                         }
                     }
                     return null;
                 });
     }
 
-    //UPDATE
+    /**
+     * Обновляет существующую запись Book
+     *
+     * @param book объект Book с обновеллынми данными
+     * @return true, если обновление прошло успешно, иначе false
+     */
     public boolean update(Book book) {
-        String sql = "UPDATE books SET title=?, author_id=?, year_published=?, genre=? WHERE book_id=?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> fillPreparedStatementForBook(preparedStatement, book, true),
-                preparedStatement -> preparedStatement.executeUpdate() > 0
+        return DBConnection.executePreparedStatement(SQL_UPDATE,
+                stmt -> fillPreparedStatementForBook(stmt, book, true),
+                stmt -> stmt.executeUpdate() > 0
         );
     }
 
-    //READ ALL
+    /**
+     * Возвращает список всех записей Book из базы данных.
+     *
+     * @return список всех объектов Book
+     */
     public List<Book> findAll() {
-        String sql = "SELECT book_id,title,author_id,year_published,genre FROM books";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> {
+        return DBConnection.executePreparedStatement(SQL_SELECT_ALL,
+                stmt -> {
                 },
-                preparedStatement -> {
+                stmt -> {
                     List<Book> books = new ArrayList<>();
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        while (resultSet.next()) {
-                            books.add(mapResultSetToBook(resultSet));
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        while (rs.next()) {
+                            books.add(mapResultSetToBook(rs));
                         }
                     }
                     return books;
                 });
     }
 
-    //DELETE
+    /**
+     * Удаляет запись Book по заданному идентификатору.
+     *
+     * @param id идентификатор книги
+     * @return true, если удаление прошло успешно, иначе false
+     */
     public boolean delete(int id) {
-        String sql = "DELETE FROM books WHERE book_id = ?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> preparedStatement.setInt(1, id),
-                preparedStatement -> preparedStatement.executeUpdate() > 0
-        );
+        return DBConnection.executePreparedStatement(SQL_DELETE,
+                stmt -> stmt.setInt(1, id),
+                stmt -> stmt.executeUpdate() > 0);
     }
 
+    /**
+     * Заполняет объект PreparedStatement Значениями из объекта Book
+     *
+     * @param stmt     PreparedStatement, который нужно заполнить
+     * @param book     объект Book, содержащий данные
+     * @param isUpdate true, если операция обновления, false для операции вставки
+     * @throws SQLException в случае ошибки доступа к базе данных
+     */
     private void fillPreparedStatementForBook(PreparedStatement stmt, Book book, boolean isUpdate) throws SQLException {
         stmt.setString(1, book.getTitle());
-        if (book.getAuthor_id() != null) {
-            stmt.setInt(2, book.getAuthor_id());
-        } else {
-            stmt.setNull(2, java.sql.Types.INTEGER);
-        }
-        if (book.getYear_published() != null) {
-            stmt.setInt(3, book.getYear_published());
-        } else {
-            stmt.setNull(3, java.sql.Types.INTEGER);
-        }
+        stmt.setObject(2, book.getAuthorId(), java.sql.Types.INTEGER);
+        stmt.setObject(3, book.getYearPublished(), java.sql.Types.INTEGER);
         stmt.setString(4, book.getGenre());
-
         if (isUpdate) {
-            if (book.getAuthor_id() == null) {
-                throw new IllegalArgumentException("Book ID cannot be null for update");
-            }
-            stmt.setInt(5, book.getBook_id());
+            stmt.setInt(5, book.getBookId());
         }
     }
 
+    /**
+     * Преобразует текущую строку объекта ResultSet  объект Book
+     *
+     * @param rs объект ResultSet, уже установленный на нужную строку
+     * @return объект Book, полученный из данных ResultSet
+     * @throws SQLException в случае ошибки доступа к базе данных
+     */
     private Book mapResultSetToBook(ResultSet rs) throws SQLException {
         Book book = new Book();
-        book.setBook_id(rs.getInt("book_id"));
+        book.setBookId(rs.getInt("book_id"));
         book.setTitle(rs.getString("title"));
-
-        int author_id = rs.getInt("author_id");
-        if (rs.wasNull()) {
-            book.setAuthor_id(null);
-        } else {
-            book.setAuthor_id(author_id);
-        }
-
-        int year_published = rs.getInt("year_published");
-        if (rs.wasNull()) {
-            book.setYear_published(null);
-        } else {
-            book.setYear_published(year_published);
-        }
-
+        book.setAuthorId((Integer) rs.getObject("author_id"));
+        book.setYearPublished((Integer) rs.getObject("year_published"));
         book.setGenre(rs.getString("genre"));
         return book;
     }

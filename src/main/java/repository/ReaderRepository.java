@@ -12,112 +12,136 @@ import java.util.Date;
 import java.util.List;
 
 public class ReaderRepository {
-    //CREATE
+
+    private static final String SQL_INSERT = "INSERT INTO readers(name, email) VALUES(?,?) RETURNING reader_id, registration_date";
+    private static final String SQL_SELECT_BY_ID = "SELECT reader_id, name, email, registration_date FROM readers WHERE reader_id = ?";
+    private static final String SQL_UPDATE = "UPDATE readers SET name = ?, email = ? WHERE reader_id = ?";
+    private static final String SQL_DELETE = "DELETE FROM readers WHERE reader_id = ?";
+    private static final String SQL_SELECT_ALL = "SELECT reader_id, name, email, registration_date FROM readers";
+
+    /**
+     * Создает новую запись Reader в базе данных.
+     *
+     * @param reader объект Reader для создания
+     * @return созданный объект Reader с заполненным readerId и registrationDate
+     */
     public Reader create(Reader reader) {
-        String sql = "INSERT INTO readers(name, email) VALUES(?,?) RETURNING reader_id, registration_date";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> fillPreparedStatementForReader(preparedStatement, reader, false),
-                preparedStatement -> {
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        if (resultSet.next()) {
-                            reader.setReader_id(resultSet.getInt("reader_id"));
-
-                            // Получаем временную метку из базы данных
-                            Timestamp timestamp = resultSet.getTimestamp("registration_date");
-
-                            // Если временная метка не null, конвертируем в строку в нужном формате
-                            if (timestamp != null) {
-                                // Форматируем дату в строку
-                                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                                reader.setRegistration_date(sdf.format(timestamp));
-                            } else {
-                                reader.setRegistration_date(null);
-                            }
+        return DBConnection.executePreparedStatement(SQL_INSERT,
+                stmt -> fillPreparedStatementForReader(stmt, reader, false),
+                stmt -> {
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            reader.setReaderId(rs.getInt("reader_id"));
+                            reader.setRegistrationDate(formatTimestamp(rs.getTimestamp("registration_date")));
                         }
                     }
                     return reader;
-                }
-        );
+                });
     }
 
-    //READ
+    /**
+     * Находит запись Reader в базе данных по ID.
+     *
+     * @param id идентификатор читателя
+     * @return объект Reader, если запись найдена, иначе null
+     */
     public Reader getById(int id) {
-        String sql = "SELECT * FROM readers WHERE reader_id = ?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> preparedStatement.setInt(1, id),
-                preparedStatement -> {
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        return resultSet.next() ? mapResultSetToReader(resultSet) : null;
+        return DBConnection.executePreparedStatement(SQL_SELECT_BY_ID,
+                stmt -> stmt.setInt(1, id),
+                stmt -> {
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        return rs.next() ? mapResultSetToReader(rs) : null;
                     }
-                }
-        );
+                });
     }
 
-    //UPDATE
+    /**
+     * Обновляет существующую запись Reader.
+     *
+     * @param reader объект Reader с обновленными данными
+     * @return true, если обновление прошло успешно, иначе false
+     */
     public boolean update(Reader reader) {
-        String sql = "UPDATE readers SET name = ?, email = ? WHERE reader_id = ?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> fillPreparedStatementForReader(preparedStatement, reader, true),
-                preparedStatement -> preparedStatement.executeUpdate() > 0
+        return DBConnection.executePreparedStatement(SQL_UPDATE,
+                stmt -> fillPreparedStatementForReader(stmt, reader, true),
+                stmt -> stmt.executeUpdate() > 0
         );
     }
 
-    //DELETE
+    /**
+     * Удаляет запись Reader по заданному идентификатору.
+     *
+     * @param id идентификатор читателя
+     * @return true, если удаление прошло успешно, иначе false
+     */
     public boolean delete(int id) {
-        String sql = "DELETE FROM readers WHERE reader_id = ?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> preparedStatement.setInt(1, id),
-                preparedStatement -> preparedStatement.executeUpdate() > 0
-        );
+        return DBConnection.executePreparedStatement(SQL_DELETE,
+                stmt -> stmt.setInt(1, id),
+                stmt -> stmt.executeUpdate() > 0);
     }
 
+    /**
+     * Возвращает список всех записей Reader из базы данных.
+     *
+     * @return список всех объектов Reader
+     */
     public List<Reader> getAll() {
-        String sql = "SELECT reader_id,name,email, registration_date FROM readers";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> {
+        return DBConnection.executePreparedStatement(SQL_SELECT_ALL,
+                stmt -> {
                 },
-                preparedStatement -> {
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        List<Reader> readers = new ArrayList<>();
-                        while (resultSet.next()) {
-                            readers.add(mapResultSetToReader(resultSet));
+                stmt -> {
+                    List<Reader> readers = new ArrayList<>();
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        while (rs.next()) {
+                            readers.add(mapResultSetToReader(rs));
                         }
-                        return readers;
                     }
-                }
-        );
+                    return readers;
+                });
     }
 
-    // Заполняем PreparedStatement (insert, update)
+    /**
+     * Заполняет объект PreparedStatement значениями из объекта Reader.
+     *
+     * @param stmt   PreparedStatement, который нужно заполнить
+     * @param reader объект Reader, содержащий данные
+     * @param isUpdate true, если операция обновления, false для операции вставки
+     * @throws SQLException в случае ошибки доступа к базе данных
+     */
     private void fillPreparedStatementForReader(PreparedStatement stmt, Reader reader, boolean isUpdate) throws SQLException {
         stmt.setString(1, reader.getName());
         stmt.setString(2, reader.getEmail());
-
         if (isUpdate) {
-            if (reader.getReader_id() == null) {
-                throw new IllegalArgumentException("Reader ID cannot be null for update");
-            }
-            stmt.setInt(3, reader.getReader_id());
+            stmt.setInt(3, reader.getReaderId());
         }
     }
 
-    // Маппим ResultSet -> Reader
+    /**
+     * Преобразует текущую строку объекта ResultSet в объект Reader.
+     *
+     * @param rs объект ResultSet, уже установленный на нужную строку
+     * @return объект Reader, полученный из данных ResultSet
+     * @throws SQLException в случае ошибки доступа к базе данных
+     */
     private Reader mapResultSetToReader(ResultSet rs) throws SQLException {
         Reader reader = new Reader();
-        reader.setReader_id(rs.getInt("reader_id"));
+        reader.setReaderId(rs.getInt("reader_id"));
         reader.setName(rs.getString("name"));
         reader.setEmail(rs.getString("email"));
-        // Преобразуем Timestamp в java.sql.Date
-        Timestamp timestamp = rs.getTimestamp("registration_date");
-        if (timestamp != null) {
-            Date registrationDate = new Date(timestamp.getTime());
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            reader.setRegistration_date(sdf.format(registrationDate));  // Форматируем в строку
-        } else {
-            reader.setRegistration_date(null);
-        }
-
-
+        reader.setRegistrationDate(formatTimestamp(rs.getTimestamp("registration_date")));
         return reader;
+    }
+
+    /**
+     * Форматирует Timestamp в строку (yyyy-MM-dd).
+     *
+     * @param timestamp объект Timestamp
+     * @return строка с датой в формате yyyy-MM-dd, либо null, если timestamp равен null
+     */
+    private String formatTimestamp(Timestamp timestamp) {
+        if (timestamp == null) {
+            return null;
+        }
+        return new SimpleDateFormat("yyyy-MM-dd").format(new Date(timestamp.getTime()));
     }
 }

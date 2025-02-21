@@ -14,158 +14,155 @@ import java.util.List;
 
 public class LoanRepository {
 
-    //CREATE
+    private static final String SQL_INSERT = "INSERT INTO loans(book_id, reader_id, loan_date, return_date) VALUES(?, ?, ?, ?) RETURNING loan_id, loan_date, return_date";
+    private static final String SQL_SELECT_BY_ID = "SELECT loan_id, book_id, reader_id, loan_date, return_date FROM loans WHERE loan_id = ?";
+    private static final String SQL_UPDATE = "UPDATE loans SET book_id = ?, reader_id = ?, loan_date = ?, return_date = ? WHERE loan_id = ?";
+    private static final String SQL_DELETE = "DELETE FROM loans WHERE loan_id = ?";
+    private static final String SQL_SELECT_ALL = "SELECT loan_id, book_id, reader_id, loan_date, return_date FROM loans";
+
+    /**
+     * Создает новую запись Loan в базе данных.
+     *
+     * @param loan объект Loan для создания
+     * @return созданный объект Loan с заполненным loanId и датами
+     */
     public Loan create(Loan loan) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        String sql = "INSERT INTO loans(book_id, reader_id, loan_date, return_date) VALUES(?, ?, ?, ?) RETURNING loan_id, loan_date, return_date";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> {
-                    preparedStatement.setInt(1, loan.getBook_id());
-                    preparedStatement.setInt(2, loan.getReader_id());
-
-                    // Преобразуем строки в объект Date
-                    if (loan.getLoan_date() != null) {
-
-                        try {
-                            Date loanDate = sdf.parse(loan.getLoan_date());
-                            preparedStatement.setDate(3, new java.sql.Date(loanDate.getTime()));
-                        } catch (ParseException e) {
-                            // Обрабатываем исключение, если формат даты неверен
-                            throw new IllegalArgumentException("Invalid loan_date format");
-                        }
-                    } else {
-                        preparedStatement.setDate(3, null);
-                    }
-
-                    if (loan.getReturn_date() != null) {
-                        try {
-                            Date returnDate = sdf.parse(loan.getReturn_date());
-                            preparedStatement.setDate(4, new java.sql.Date(returnDate.getTime()));
-                        } catch (ParseException e) {
-                            throw new IllegalArgumentException("Invalid return_date format");
-                        }
-                    } else {
-                        preparedStatement.setDate(4, null);
-                    }
-                },
-                preparedStatement -> {
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        if (resultSet.next()) {
-                            loan.setLoan_id(resultSet.getInt("loan_id"));
-                            // Преобразование временной метки в строку
-                            Timestamp loanTimestamp = resultSet.getTimestamp("loan_date");
-                            if (loanTimestamp != null) {
-
-                                loan.setLoan_date(sdf.format(loanTimestamp)); // Преобразуем дату в строку
-                            }
-                            Timestamp returnTimestamp = resultSet.getTimestamp("return_date");
-                            if (returnTimestamp != null) {
-                                loan.setReturn_date(sdf.format(returnTimestamp)); // Преобразуем дату в строку
-                            }
+        return DBConnection.executePreparedStatement(SQL_INSERT,
+                stmt -> fillPreparedStatementForLoan(stmt, loan, false),
+                stmt -> {
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            loan.setLoanId(rs.getInt("loan_id"));
+                            loan.setLoanDate(formatTimestamp(rs.getTimestamp("loan_date")));
+                            loan.setReturnDate(formatTimestamp(rs.getTimestamp("return_date")));
                         }
                     }
                     return loan;
-                }
-        );
+                });
     }
 
-    //READ
+    /**
+     * Находит запись Loan в базе данных по ID.
+     *
+     * @param id идентификатор займа
+     * @return объект Loan, если запись найдена, иначе null
+     */
     public Loan getById(int id) {
-        String sql = "SELECT * FROM loans WHERE loan_id=?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> preparedStatement.setInt(1, id),
-                preparedStatement -> {
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        return resultSet.next() ? mapResultSetToLoan(resultSet) : null;
+        return DBConnection.executePreparedStatement(SQL_SELECT_BY_ID,
+                stmt -> stmt.setInt(1, id),
+                stmt -> {
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        return rs.next() ? mapResultSetToLoan(rs) : null;
                     }
-                }
-        );
+                });
     }
 
-    //UPDATE
+    /**
+     * Обновляет существующую запись Loan.
+     *
+     * @param loan объект Loan с обновленными данными
+     * @return true, если обновление прошло успешно, иначе false
+     */
     public boolean update(Loan loan) {
-        String sql = "UPDATE loans SET book_id=?, reader_id=?, loan_date=?, return_date=? WHERE loan_id=?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> fillPreparedStatementForLoan(preparedStatement, loan, true),
-                preparedStatement -> preparedStatement.executeUpdate() > 0
-        );
+        return DBConnection.executePreparedStatement(SQL_UPDATE,
+                stmt -> fillPreparedStatementForLoan(stmt, loan, true),
+                stmt -> stmt.executeUpdate() > 0);
     }
 
-    //DELETE
+    /**
+     * Удаляет запись Loan по заданному идентификатору.
+     *
+     * @param id идентификатор займа
+     * @return true, если удаление прошло успешно, иначе false
+     */
     public boolean delete(int id) {
-        String sql = "DELETE FROM loans WHERE loan_id=?";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> preparedStatement.setInt(1, id),
-                preparedStatement -> preparedStatement.executeUpdate() > 0
-        );
+        return DBConnection.executePreparedStatement(SQL_DELETE,
+                stmt -> stmt.setInt(1, id),
+                stmt -> stmt.executeUpdate() > 0);
     }
 
-    //GET ALL
+    /**
+     * Возвращает список всех записей Loan из базы данных.
+     *
+     * @return список всех объектов Loan
+     */
     public List<Loan> getAll() {
-        String sql = "SELECT loan_id,book_id,reader_id,loan_date,return_date FROM loans";
-        return DBConnection.executePreparedStatement(sql,
-                preparedStatement -> {
+        return DBConnection.executePreparedStatement(SQL_SELECT_ALL,
+                stmt -> {
                 },
-                preparedStatement -> {
-                    try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                        List<Loan> loans = new ArrayList<>();
-                        while (resultSet.next()) {
-                            loans.add(mapResultSetToLoan(resultSet));
+                stmt -> {
+                    List<Loan> loans = new ArrayList<>();
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        while (rs.next()) {
+                            loans.add(mapResultSetToLoan(rs));
                         }
-                        return loans;
                     }
-                }
-        );
+                    return loans;
+                });
     }
 
-    // Заполняем PreparedStatement (insert, update)
+    /**
+     * Заполняет объект PreparedStatement значениями из объекта Loan.
+     *
+     * @param stmt     PreparedStatement, который нужно заполнить
+     * @param loan     объект Loan, содержащий данные
+     * @param isUpdate true, если операция обновления, false для операции вставки
+     * @throws SQLException в случае ошибки доступа к базе данных
+     */
     private void fillPreparedStatementForLoan(PreparedStatement stmt, Loan loan, boolean isUpdate) throws SQLException {
-        try {
-            stmt.setInt(1, loan.getBook_id());
-            stmt.setInt(2, loan.getReader_id());
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-            // Преобразование строк в дату
-            if (loan.getLoan_date() != null) {
-
-                Date loanDate = sdf.parse(loan.getLoan_date());
-                stmt.setDate(3, new java.sql.Date(loanDate.getTime()));
-            } else {
-                stmt.setDate(3, null);  // Если даты нет
-            }
-
-            if (loan.getReturn_date() != null) {
-                Date returnDate = sdf.parse(loan.getReturn_date());
-                stmt.setDate(4, new java.sql.Date(returnDate.getTime()));
-            } else {
-                stmt.setDate(4, null);  // Если даты нет
-            }
-
-            if (isUpdate) {
-                stmt.setInt(5, loan.getLoan_id());
-            }
-        } catch (ParseException e) {
-            throw new SQLException("Invalid date format", e);  // Ловим ошибку, если формат даты неверный
+        stmt.setInt(1, loan.getBookId());
+        stmt.setInt(2, loan.getReaderId());
+        stmt.setDate(3, parseDate(loan.getLoanDate()));
+        stmt.setDate(4, parseDate(loan.getReturnDate()));
+        if (isUpdate) {
+            stmt.setInt(5, loan.getLoanId());
         }
     }
 
-    // Маппим ResultSet -> Loan
+    /**
+     * Преобразует текущую строку объекта ResultSet в объект Loan.
+     *
+     * @param rs объект ResultSet, уже установленный на нужную строку
+     * @return объект Loan, полученный из данных ResultSet
+     * @throws SQLException в случае ошибки доступа к базе данных
+     */
     private Loan mapResultSetToLoan(ResultSet rs) throws SQLException {
         Loan loan = new Loan();
-        loan.setLoan_id(rs.getInt("loan_id"));
-        loan.setBook_id(rs.getInt("book_id"));
-        loan.setReader_id(rs.getInt("reader_id"));
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        Timestamp loanTimestamp = rs.getTimestamp("loan_date");
-        if (loanTimestamp != null) {
-
-            loan.setLoan_date(sdf.format(loanTimestamp));  // Форматируем в строку
-        }
-
-        Timestamp returnTimestamp = rs.getTimestamp("return_date");
-        if (returnTimestamp != null) {
-            loan.setReturn_date(sdf.format(returnTimestamp));  // Форматируем в строку
-        }
-
+        loan.setLoanId(rs.getInt("loan_id"));
+        loan.setBookId(rs.getInt("book_id"));
+        loan.setReaderId(rs.getInt("reader_id"));
+        loan.setLoanDate(formatTimestamp(rs.getTimestamp("loan_date")));
+        loan.setReturnDate(formatTimestamp(rs.getTimestamp("return_date")));
         return loan;
+    }
+
+    /**
+     * Форматирует Timestamp в строку (yyyy-MM-dd).
+     *
+     * @param timestamp объект Timestamp
+     * @return строка с датой в формате yyyy-MM-dd, либо null, если timestamp равен null
+     */
+    private String formatTimestamp(Timestamp timestamp) {
+        if (timestamp == null) {
+            return null;
+        }
+        return new SimpleDateFormat("yyyy-MM-dd").format(new Date(timestamp.getTime()));
+    }
+
+    /**
+     * Преобразует строку в SQL Date.
+     *
+     * @param date строка с датой (yyyy-MM-dd)
+     * @return объект java.sql.Date или null, если входная строка пуста
+     */
+    private java.sql.Date parseDate(String date) {
+        if (date == null || date.isEmpty()) {
+            return null;
+        }
+        try {
+            return new java.sql.Date(new SimpleDateFormat("yyyy-MM-dd").parse(date).getTime());
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid date format: " + date);
+        }
     }
 }

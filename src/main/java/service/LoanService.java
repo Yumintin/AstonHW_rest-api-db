@@ -10,26 +10,27 @@ import java.util.stream.Collectors;
 
 public class LoanService {
     private final LoanRepository repository=new LoanRepository();
+    private final LoanMapper loanMapper=new LoanMapper();
 
     public LoanDTO createLoan(LoanDTO dto) {
-        Loan loan= LoanMapper.toLoan(dto);
+        Loan loan= loanMapper.toEntity(dto);
         Loan created=repository.create(loan);
-        return LoanMapper.toLoanDTO(created);
+        return loanMapper.toDto(created);
     }
 
     public LoanDTO getLoanById(int id) {
         Loan loan=repository.getById(id);
-        return LoanMapper.toLoanDTO(loan);
+        return loanMapper.toDto(loan);
     }
 
     public List<LoanDTO> getAllLoans() {
         List<Loan> loans=repository.getAll();
-        return loans.stream().map(LoanMapper::toLoanDTO).collect(Collectors.toList());
+        return loans.stream().map(loanMapper::toDto).collect(Collectors.toList());
     }
 
     public boolean updateLoan(int id, LoanDTO dto) {
-        Loan loan=LoanMapper.toLoan(dto);
-        loan.setLoan_id(id);
+        Loan loan=loanMapper.toEntity(dto);
+        loan.setLoanId(id);
         return repository.update(loan);
     }
     public boolean deleteLoan(int id) {

@@ -10,26 +10,27 @@ import java.util.stream.Collectors;
 
 public class BookService {
     private final BookRepository repository = new BookRepository();
+    private final BookMapper bookMapper = new BookMapper();
 
     public BookDTO createBook(BookDTO dto) {
-        Book book = BookMapper.toBook(dto);
+        Book book = bookMapper.toEntity(dto);
         Book created = repository.create(book);
-        return BookMapper.toBookDTO(created);
+        return bookMapper.toDto(created);
     }
 
     public BookDTO getBookById(int id) {
         Book book = repository.findByBookId(id);
-        return BookMapper.toBookDTO(book);
+        return bookMapper.toDto(book);
     }
 
     public List<BookDTO> getAllBooks() {
         List<Book> books = repository.findAll();
-        return books.stream().map(BookMapper::toBookDTO).collect(Collectors.toList());
+        return books.stream().map(bookMapper::toDto).collect(Collectors.toList());
     }
 
     public boolean updateBook(int id, BookDTO dto) {
-        Book book = BookMapper.toBook(dto);
-        book.setBook_id(id);
+        Book book = bookMapper.toEntity(dto);
+        book.setBookId(id);
         return repository.update(book);
     }
 
