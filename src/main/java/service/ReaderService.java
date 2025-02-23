@@ -10,9 +10,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class ReaderService {
-    private final ReaderRepository repository = new ReaderRepository();
-    private final ReaderMapper readerMapper = new ReaderMapper();
+    private final ReaderRepository repository;
+    private final ReaderMapper readerMapper;
 
+    public ReaderService(ReaderRepository repository, ReaderMapper readerMapper) {
+        this.repository=repository;
+        this.readerMapper=readerMapper;
+    }
     public ReaderDTO createReader(ReaderDTO dto) {
         Reader reader = readerMapper.toEntity(dto);
         Reader created = repository.create(reader);

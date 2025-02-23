@@ -1,6 +1,10 @@
 package servlet;
 
 import dto.AuthorDTO;
+import dto.BookDTO;
+import entity.Author;
+import mapper.AuthorMapper;
+import repository.AuthorRepository;
 import service.AuthorService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -14,14 +18,17 @@ import java.util.List;
 
 @WebServlet("/api/v1/authors/*")
 public class AuthorServlet extends HttpServlet {
-    private final AuthorService authorService = new AuthorService();
+    private final AuthorService authorService = new AuthorService(new AuthorRepository(),new AuthorMapper());
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String idParam = req.getParameter("id");
-        if (idParam != null) {
+        String pathInfo = req.getPathInfo();
+        if (pathInfo == null || pathInfo.equals("/")) {
+            List<AuthorDTO> authors = authorService.getAllAuthors();
+            JsonUtil.sendJsonResponse(resp, authors, HttpServletResponse.SC_OK);
+        }else {
             try {
-                int id = Integer.parseInt(idParam);
+                int id = Integer.parseInt(pathInfo.substring(1));
                 AuthorDTO authorDTO = authorService.getAuthorById(id);
                 JsonUtil.checkExists(authorDTO, "Author not found", HttpServletResponse.SC_NOT_FOUND);
                 JsonUtil.sendJsonResponse(resp, authorDTO, HttpServletResponse.SC_OK);
@@ -30,9 +37,6 @@ public class AuthorServlet extends HttpServlet {
             } catch (JsonUtil.NotFoundException e) {
                 JsonUtil.sendErrorResponse(resp, e.getMessage(), HttpServletResponse.SC_NOT_FOUND);
             }
-        } else {
-            List<AuthorDTO> authors = authorService.getAllAuthors();
-            JsonUtil.sendJsonResponse(resp, authors, HttpServletResponse.SC_OK);
         }
     }
 

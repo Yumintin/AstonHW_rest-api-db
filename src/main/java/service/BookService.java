@@ -9,8 +9,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class BookService {
-    private final BookRepository repository = new BookRepository();
-    private final BookMapper bookMapper = new BookMapper();
+    private final BookRepository repository;
+    private final BookMapper bookMapper;
+
+    public BookService(BookRepository repository, BookMapper bookMapper) {
+        this.repository = repository;
+        this.bookMapper = bookMapper;
+    }
 
     public BookDTO createBook(BookDTO dto) {
         Book book = bookMapper.toEntity(dto);

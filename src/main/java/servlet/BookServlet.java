@@ -6,6 +6,8 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import mapper.BookMapper;
+import repository.BookRepository;
 import service.BookService;
 import util.JsonUtil;
 
@@ -14,7 +16,7 @@ import java.util.List;
 
 @WebServlet("/api/v1/books/*")
 public class BookServlet extends HttpServlet {
-    private final BookService bookService = new BookService();
+    private final BookService bookService = new BookService(new BookRepository(),new BookMapper());
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {

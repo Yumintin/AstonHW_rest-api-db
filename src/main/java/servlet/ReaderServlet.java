@@ -6,6 +6,8 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import mapper.ReaderMapper;
+import repository.ReaderRepository;
 import service.ReaderService;
 import util.JsonUtil;
 
@@ -14,7 +16,7 @@ import java.util.List;
 
 @WebServlet("/api/v1/readers/*")
 public class ReaderServlet extends HttpServlet {
-    private final ReaderService readerService = new ReaderService();
+    private final ReaderService readerService = new ReaderService(new ReaderRepository(), new ReaderMapper());
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {

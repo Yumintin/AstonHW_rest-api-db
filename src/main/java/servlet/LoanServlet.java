@@ -6,6 +6,8 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import mapper.LoanMapper;
+import repository.LoanRepository;
 import service.LoanService;
 import util.JsonUtil;
 
@@ -14,7 +16,7 @@ import java.util.List;
 
 @WebServlet("/api/v1/loans/*")
 public class LoanServlet extends HttpServlet {
-    private final LoanService loanService = new LoanService();
+    private final LoanService loanService = new LoanService(new LoanRepository(), new LoanMapper());
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {

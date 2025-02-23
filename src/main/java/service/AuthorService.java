@@ -9,8 +9,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class AuthorService {
-    private final AuthorRepository repository = new AuthorRepository();
-    private final AuthorMapper authorMapper = new AuthorMapper();
+    private final AuthorRepository repository;
+    private final AuthorMapper authorMapper;
+    public AuthorService(AuthorRepository repository, AuthorMapper authorMapper) {
+        this.repository = repository;
+        this.authorMapper = authorMapper;
+    }
+
     public AuthorDTO createAuthor(AuthorDTO dto) {
         Author author = authorMapper.toEntity(dto);
         Author created = repository.create(author);

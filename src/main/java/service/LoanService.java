@@ -9,9 +9,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class LoanService {
-    private final LoanRepository repository=new LoanRepository();
-    private final LoanMapper loanMapper=new LoanMapper();
+    private final LoanRepository repository;
+    private final LoanMapper loanMapper;
 
+    public LoanService(LoanRepository repository, LoanMapper loanMapper) {
+        this.repository=repository;
+        this.loanMapper=loanMapper;
+    }
     public LoanDTO createLoan(LoanDTO dto) {
         Loan loan= loanMapper.toEntity(dto);
         Loan created=repository.create(loan);
